@@ -1,102 +1,91 @@
 import logging
 
 logging.basicConfig(
+    filename="roster_app.log",
     level=logging.INFO,
     format="[%(asctime)s] - [%(levelname)s] - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[
-        logging.FileHandler("roster_app.log", encoding="utf-8"),
-        logging.StreamHandler()
-    ]
+    encoding="utf-8"
 )
 
-roster = [
-    {
-        "player_id": "P01",
-        "name": "Faker",
-        "role": "Mid Lane",
-        "salary": 5000.0,
-        "status": "Active"
-    },
-    {
-        "player_id": "P02",
-        "name": "Oner",
-        "role": "Jungle",
-        "salary": 3500.0,
-        "status": "Active"
-    },
-    {
-        "player_id": "P03",
-        "name": "Ruler",
-        "role": "ADC",
-        "salary": 6000.0,
-        "status": "Benched"
-    }
-]
 
-
-def display_roster(roster_list):
-    logging.info("Coach viewed the team roster.")
+def calculate_actual_pay(player: dict[str, object]) -> float:
+    """
+    Tính toán mức lương thực nhận dựa trên trạng thái thi đấu của tuyển thủ.
+    Active: 100% lương, Benched: 50% lương.
     
+    Sử dụng dict[str, object] thay cho Dict[str, Any].
+    """
+    try:
+        status = player["status"]
+        salary = player["salary"]
+        
+        base_salary = float(salary) 
+        
+        if status == "Active":
+            return base_salary
+        elif status == "Benched":
+            return base_salary * 0.5
+        else:
+            return base_salary
+    except KeyError as e:
+        raise KeyError(str(e))
+
+
+def display_roster(roster_list: list[dict[str, object]]) -> None:
+    """Chức năng 1: Hiển thị đội hình hiện tại dạng bảng phẳng chuẩn đẹp."""
     if not roster_list:
         print("\nĐội hình hiện đang trống.")
+        logging.info("Coach viewed the team roster. (Roster was empty)")
         return
 
     print("\n--- ĐỘI HÌNH RIKKEI ESPORTS ---")
     print(f"{'ID':<8} | {'Tên tuyển thủ':<20} | {'Vị trí':<15} | {'Lương':<12} | Trạng thái")
-    print("-" * 80)
-    
+    print("-" * 75)
+
     for player in roster_list:
         try:
-            p_id = player["player_id"]
-            name = player["name"]
-            role = player["role"]
-            salary = player["salary"]
+            pid = player.get("player_id", "N/A")
+            name = player.get("name", "Unknown")
+            role = player.get("role", "Unknown")
+            salary = player.get("salary", 0.0)
             status = player.get("status", "Unknown")
-            
+
             display_name = f"{name} [DỰ BỊ]" if status == "Benched" else name
-            print(f"{p_id:<8} | {display_name:<20} | {role:<15} | {salary:,.1f} | {status}")
-            
-        except KeyError as e:
-            logging.error(f"Missing key while displaying roster: {e}")
-            print(f"[Lỗi dữ liệu] Tuyển thủ bị thiếu trường thông tin: {e}")
+
+            formatted_salary = float(salary)
+            print(f"{pid:<8} | {display_name:<20} | {role:<15} | {formatted_salary:,.1f}      | {status}")
+        except Exception as e:
+            print(f"Lỗi hiển thị dòng dữ liệu tuyển thủ: {e}")
+
+    logging.info("Coach viewed the team roster.")
 
 
-def _get_positive_salary():
-    while True:
-        try:
-            salary_input = input("Nhập mức lương hàng tháng: ").strip()
-            salary = float(salary_input)
-            if salary <= 0:
-                print("\nLương phải là số dương. Vui lòng nhập lại.")
-                continue
-            return salary
-        except ValueError:
-            print("\nLương phải là số. Vui lòng nhập lại.")
-            logging.warning("Failed to sign player - Invalid salary input")
-
-
-def sign_player(roster_list):
+def sign_player(roster_list: list[dict[str, object]]) -> None:
+    """Chức năng 2: Chiêu mộ thành viên mới với validation dữ liệu chặt chẽ."""
     print("\n--- CHIÊU MỘ TUYỂN THỦ MỚI ---")
     
     player_id = input("Nhập mã tuyển thủ: ").strip().upper()
-    if not player_id:
-        print("Mã tuyển thủ không được để trống.")
-        return
-
-    if any(p["player_id"] == player_id for p in roster_list):
+    
+    if any(p.get("player_id") == player_id for p in roster_list):
         print(f"\nLỗi: Mã tuyển thủ {player_id} đã tồn tại.")
         logging.warning(f"Failed to sign player - Duplicate player ID {player_id}")
         return
 
     name = input("Nhập tên tuyển thủ: ").strip()
     role = input("Nhập vị trí thi đấu: ").strip()
-    
-    if not name or not role:
-        print("Tên và vị trí thi đấu không được để trống.")
-        return
 
-    salary = _get_positive_salary()
+    while True:
+        try:
+            salary_input = input("Nhập mức lương hàng tháng: ").strip()
+            salary = float(salary_input)
+            if salary <= 0:
+                print("Lương phải là số dương. Vui lòng nhập lại.")
+                continue
+            break
+        except ValueError:
+            print("Lương phải là số. Vui lòng nhập lại.")
+            logging.warning("Failed to sign player - Invalid salary input")
 
     new_player = {
         "player_id": player_id,
@@ -110,96 +99,110 @@ def sign_player(roster_list):
     logging.info(f"Signed new player {name} with salary {salary}")
 
 
-def update_player_status(roster_list):
+def update_player_status(roster_list: list[dict[str, object]]) -> None:
+    """Chức năng 3: Cập nhật lương hoặc trạng thái thi đấu."""
     print("\n--- CẬP NHẬT LƯƠNG & TRẠNG THÁI THI ĐẤU ---")
     player_id = input("Nhập mã tuyển thủ cần cập nhật: ").strip().upper()
 
-    target_player = None
-    for p in roster_list:
-        if p["player_id"] == player_id:
-            target_player = p
-            break
-
-    if not target_player:
+    player = next((p for p in roster_list if p.get("player_id") == player_id), None)
+    if not player:
         print(f"\nKhông tìm thấy tuyển thủ mang mã {player_id}.")
         logging.warning(f"Failed to update player - Player ID {player_id} not found")
         return
 
-    print(f"\nTuyển thủ: {target_player.get('name')}")
-    print(f"Vị trí: {target_player.get('role')}")
-    print(f"Lương hiện tại: {target_player.get('salary', 0):,}")
-    print(f"Trạng thái hiện tại: {target_player.get('status', 'Unknown')}")
+    print(f"\nTuyển thủ: {player.get('name')}")
+    print(f"Vị trí: {player.get('role')}")
+    
+    current_salary = float(player.get("salary", 0.0))
+    print(f"Lương hiện tại: {current_salary:,}")
+    print(f"Trạng thái hiện tại: {player.get('status')}")
 
     print("\nBạn muốn cập nhật:")
     print("1. Cập nhật lương")
     print("2. Cập nhật trạng thái thi đấu")
-    choice = input("Chọn chức năng cập nhật (1-2): ").strip()
+    
+    while True:
+        choice = input("Chọn chức năng cập nhật (1-2): ").strip()
+        if choice in ["1", "2"]:
+            break
+        print("Lựa chọn không hợp lệ. Vui lòng nhập 1 hoặc 2.")
 
     if choice == "1":
-        old_salary = target_player.get("salary", 0)
-        new_salary = _get_positive_salary()
-        target_player["salary"] = new_salary
-        print(f"\nThành công: Đã cập nhật lương cho tuyển thủ {player_id}.")
-        logging.info(f"Updated player {player_id} salary from {old_salary} to {new_salary}")
-        
+        while True:
+            try:
+                new_salary = float(input("Nhập mức lương mới: ").strip())
+                if new_salary <= 0:
+                    print("Lương phải là số dương. Vui lòng nhập lại.")
+                    continue
+                old_salary = player["salary"]
+                player["salary"] = new_salary
+                print(f"\nThành công: Đã cập nhật lương cho tuyển thủ {player_id}.")
+                logging.info(f"Updated player {player_id} salary from {old_salary} to {new_salary}")
+                break
+            except ValueError:
+                print("Lương phải là số. Vui lòng nhập lại.")
+    
     elif choice == "2":
         print("\nChọn trạng thái mới:")
         print("1. Active")
         print("2. Benched")
-        status_choice = input("Nhập lựa chọn trạng thái (1-2): ").strip()
+        while True:
+            status_choice = input("Nhập lựa chọn trạng thái (1-2): ").strip()
+            if status_choice == "1":
+                player["status"] = "Active"
+                break
+            elif status_choice == "2":
+                player["status"] = "Benched"
+                break
+            print("Lựa chọn không hợp lệ. Vui lòng nhập 1 hoặc 2.")
         
-        if status_choice == "1":
-            target_player["status"] = "Active"
-        elif status_choice == "2":
-            target_player["status"] = "Benched"
-        else:
-            print("Lựa chọn trạng thái không hợp lệ.")
-            return
-            
         print(f"\nThành công: Đã cập nhật trạng thái cho tuyển thủ {player_id}.")
-        logging.info(f"Updated player {player_id} status to {target_player['status']}")
-    else:
-        print("Lựa chọn không hợp lệ.")
+        logging.info(f"Updated player {player_id} status to {player['status']}")
 
 
-def generate_payroll_report(roster_list):
+def generate_payroll_report(roster_list: list[dict[str, object]]) -> None:
+    """Chức năng 4: Kết xuất báo cáo quỹ lương và bẫy lỗi cấu trúc dữ liệu khuyết thiếu."""
     print("\n--- BÁO CÁO QUỸ LƯƠNG HÀNG THÁNG ---")
     
     if not roster_list:
         print("Đội hình hiện đang trống. Tổng quỹ lương: 0.0")
+        logging.info("Generated monthly payroll report. Total: 0.0")
         return
 
     print(f"{'ID':<8} | {'Tên tuyển thủ':<15} | {'Trạng thái':<10} | {'Lương gốc':<12} | Lương thực nhận")
-    print("-" * 80)
-    
+    print("-" * 75)
+
     total_payroll = 0.0
-    
+    has_error = False
+
     for player in roster_list:
         try:
-            p_id = player["player_id"]
-            name = player["name"]
-            status = player.get("status", "Unknown")
-            base_salary = player["salary"]
-            
-            # Giải quyết Bug logic ẩn: Dự bị (Benched) chỉ nhận 50% lương
-            actual_salary = base_salary if status == "Active" else base_salary * 0.5
-            total_payroll += actual_salary
-            
-            print(f"{p_id:<8} | {name:<15} | {status:<10} | {base_salary:<12,.1f} | {actual_salary:,.1f}")
-            
+            actual_pay = calculate_actual_pay(player)
+            base_salary = float(player['salary'])
+            print(f"{player['player_id']:<8} | {player['name']:<15} | {player['status']:<10} | {base_salary:<12,.1f} | {actual_pay:,.1f}")
+            total_payroll += actual_pay
         except KeyError as e:
-            logging.error(f"Missing key while generating payroll report: {e}")
             print("Lỗi: Một tuyển thủ đang bị thiếu dữ liệu.")
-            print("-" * 80)
-            print("Tổng quỹ lương hàng tháng: 0.0")
-            return
+            logging.error(f"Missing key while generating payroll report: {str(e)}")
+            has_error = True
+            break 
 
-    print("-" * 80)
-    print(f"Tổng quỹ lương hàng tháng: {total_payroll:,.1f}")
-    logging.info(f"Generated monthly payroll report. Total: {total_payroll}")
+    print("-" * 75)
+    if has_error:
+        total_payroll = 0.0
+
+    print(f"Tổng quỹ lương hàng tháng: {total_payroll:,}")
+    if not has_error:
+        logging.info(f"Generated monthly payroll report. Total: {total_payroll}")
 
 
 def main():
+    roster = [
+        {"player_id": "P01", "name": "Faker", "role": "Mid Lane", "salary": 5000.0, "status": "Active"},
+        {"player_id": "P02", "name": "Oner", "role": "Jungle", "salary": 3500.0, "status": "Active"},
+        {"player_id": "P03", "name": "Ruler", "role": "ADC", "salary": 6000.0, "status": "Benched"}
+    ]
+
     while True:
         print("\n===== HỆ THỐNG QUẢN LÝ ĐỘI HÌNH RIKKEI ESPORTS =====")
         print("1. Xem đội hình thi đấu hiện tại")
@@ -220,12 +223,12 @@ def main():
         elif choice == "4":
             generate_payroll_report(roster)
         elif choice == "5":
-            logging.info("System shutting down.")
-            print("\nHệ thống đóng. Tạm biệt huấn luyện viên!")
+            print("\nĐang đóng hệ thống... Tạm biệt Coach!")
+            logging.info("System shutdown gracefully.")
             break
         else:
-            print("\nLựa chọn không hợp lệ! Vui lòng nhập số từ 1 đến 5.")
-            logging.warning(f"Invalid menu choice selected: '{choice}'")
+            print("\nLựa chọn không hợp lệ! Vui lòng nhập từ 1 đến 5.")
 
 
-main()
+if __name__ == "__main__":
+    main()
